@@ -59,4 +59,4 @@ O Vite disponibiliza o frontend em `http://localhost:5173`. Em desenvolvimento, 
 
 Os estilos são CSS Modules, com grades adaptáveis e tabela em região de rolagem própria em telas estreitas. Há rótulos associados, mensagens de erro via `aria-describedby`, avisos de estado, foco visível, link para pular ao conteúdo e respeito à preferência de movimento reduzido.
 
-Verificação realizada: build de produção, TypeScript estrito sem `any`, 14 testes do cliente Fetch e 17 testes de componentes. Os testes de componentes usam jsdom (incluindo substituto de `showModal`); a revisão visual e do foco nativo em navegador real permanece pendente, pois não havia navegador conectado na sessão.
+Verificação realizada: build de produção, TypeScript estrito sem `any`, 14 testes do cliente Fetch e 22 testes de componentes. Os testes de componentes usam jsdom (incluindo substituto de `showModal`); a revisão visual e do foco nativo em navegador real permanece pendente, pois não havia navegador conectado na sessão.

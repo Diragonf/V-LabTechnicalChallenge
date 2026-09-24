@@ -42,7 +42,7 @@ php artisan db:seed
 php artisan db:seed --class=SolicitacaoSeeder
 ```
 
-Cada execução adiciona 20 registros sem apagar os existentes. O conjunto cobre as quatro categorias e todas as combinações entre prioridade e status. Os cinco registros urgentes sempre possuem justificativa. Os estados finais são fixtures de teste inseridas diretamente pela factory; as alterações via API continuam sujeitas à máquina de estados do serviço.
+O seeder cria 20 registros com protocolos fixos e é idempotente: novas execuções preservam os registros existentes e suas alterações, sem duplicá-los. Registros de demonstração removidos são recriados. O conjunto cobre as quatro categorias e todas as combinações entre prioridade e status. Os cinco registros urgentes sempre possuem justificativa. Os estados finais são fixtures de teste inseridas diretamente pela factory; as alterações via API continuam sujeitas à máquina de estados do serviço.
 
 ## Health check
 
@@ -58,7 +58,7 @@ Os testes adicionais verificam cobertura e integridade do seeder, factory urgent
 
 ### Execução verificada
 
-Suíte completa executada com PHP 8.5.10, PHPUnit 12.5.35, Laravel 13.33.0 e PostgreSQL 18 em uma instância local temporária e isolada: **50 testes e 350 assertions, todos aprovados**. O PostgreSQL foi usado nas migrations, persistência, filtros, paginação e health check real; falhas de conexão são simuladas separadamente. Os testes unitários não acessam o banco.
+Suíte completa executada com PHP 8.5.10, PHPUnit 12.5.35, Laravel 13.33.0 e PostgreSQL 18 em uma instância local temporária e isolada: **50 testes e 351 assertions, todos aprovados**. O PostgreSQL foi usado nas migrations, persistência, filtros, paginação e health check real; falhas de conexão são simuladas separadamente. Os testes unitários não acessam o banco.
 
 Exemplo de configuração local em `.env.testing` (preencha usuário e senha apenas no ambiente local):
 

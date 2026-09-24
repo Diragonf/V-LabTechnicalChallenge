@@ -17,17 +17,17 @@ final class ValidateJsonBody
     {
         if (in_array($request->method(), ['POST', 'PATCH', 'PUT'], true)) {
             if (! $request->isJson()) {
-                throw new UnsupportedMediaTypeHttpException();
+                throw new UnsupportedMediaTypeHttpException;
             }
 
             try {
                 $body = json_decode($request->getContent(), false, 512, JSON_THROW_ON_ERROR);
             } catch (JsonException) {
-                throw new BadRequestHttpException();
+                throw new BadRequestHttpException;
             }
 
             if (! is_object($body)) {
-                throw new BadRequestHttpException();
+                throw new BadRequestHttpException;
             }
         }
 

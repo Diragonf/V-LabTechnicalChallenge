@@ -20,7 +20,7 @@ final class SolicitacaoServiceTest extends TestCase
     #[DataProvider('transicoes')]
     public function test_valida_maquina_de_estados_sem_banco(string $atual, string $novo, bool $permitida): void
     {
-        $service = new SolicitacaoService();
+        $service = new SolicitacaoService;
         if (! $permitida) {
             $this->expectException(InvalidStatusTransitionException::class);
             $this->expectExceptionMessage("A transição de {$atual} para {$novo} não é permitida.");
@@ -54,13 +54,13 @@ final class SolicitacaoServiceTest extends TestCase
     {
         // Container mínimo: sem bootstrap Laravel, HTTP, migrations ou conexão de banco.
         $anterior = Facade::getFacadeApplication();
-        $container = new Container();
-        $container->instance('validator', new ValidatorFactory(new Translator(new ArrayLoader(), 'pt_BR')));
+        $container = new Container;
+        $container->instance('validator', new ValidatorFactory(new Translator(new ArrayLoader, 'pt_BR')));
         Facade::clearResolvedInstances();
         Facade::setFacadeApplication($container);
 
         try {
-            (new SolicitacaoService())->criar(array_merge([
+            (new SolicitacaoService)->criar(array_merge([
                 'nome_solicitante' => 'Pessoa Fictícia Unitária',
                 'categoria' => 'CONSULTA',
                 'prioridade' => 'URGENTE',

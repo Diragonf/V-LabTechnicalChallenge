@@ -1,0 +1,59 @@
+services:
+  frontend:
+    build: .
+    ports:
+      - "127.0.0.1:${FRONTEND_PORT:-8080}:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1/"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build: ./backend
+    environment:
+      APP_NAME: V-Lab
+      APP_ENV: local
+      APP_DEBUG: "false"
+      APP_KEY: ${APP_KEY:-}
+      APP_URL: http://localhost:${FRONTEND_PORT:-8080}
+      LOG_CHANNEL: stderr
+      DB_CONNECTION: pgsql
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_DATABASE: ${DB_DATABASE:-vlab}
+      DB_USERNAME: ${DB_USERNAME:-vlab}
+      DB_PASSWORD: ${DB_PASSWORD:-vlab_local_only}
+      CACHE_STORE: array
+      SESSION_DRIVER: array
+      QUEUE_CONNECTION: sync
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "--silent", "http://127.0.0.1/api/v1/health"]
+      interval: 10s
+      timeout: 5s
+      start_period: 60s
+      retries: 5
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${DB_DATABASE:-vlab}
+      POSTGRES_USER: ${DB_USERNAME:-vlab}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-vlab_local_only}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\""]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+
+volumes:
+  postgres_data:

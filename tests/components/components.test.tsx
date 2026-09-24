@@ -67,16 +67,67 @@ describe('SolicitacoesList', () => {
     await act(async () => { old.resolve(page()); });
     expect(screen.queryByText(item.protocolo)).not.toBeInTheDocument();
   });
-  test('exibe vazio e erro com retry', async () => {
-    vi.spyOn(api, 'listarSolicitacoes').mockRejectedValueOnce(fail()).mockResolvedValue(page([]));
+  test('exibe a falha da API e permite tentar novamente até uma listagem vazia', async () => {
+    const user = userEvent.setup();
+    const list = vi.spyOn(api, 'listarSolicitacoes').mockRejectedValueOnce(fail()).mockResolvedValue(page([]));
     render(<SolicitacoesList onSelect={() => {}} />);
-    await screen.findByRole('alert');
-    await userEvent.click(screen.getByText('Tentar novamente'));
+    const alert = await screen.findByRole('alert');
+    expect(alert).toBeVisible();
+    expect(alert).toHaveTextContent('Serviço indisponível.');
+    expect(screen.queryByText('Carregando solicitações…')).not.toBeInTheDocument();
+    expect(screen.queryByRole('table')).not.toBeInTheDocument();
+    expect(screen.queryByText(/Nenhuma solicitação encontrada/)).not.toBeInTheDocument();
+    await user.click(within(alert).getByRole('button', { name: 'Tentar novamente' }));
     expect(await screen.findByText(/Nenhuma solicitação encontrada/)).toBeVisible();
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    expect(list).toHaveBeenCalledTimes(2);
   });
 });
 
 describe('SolicitacaoForm', () => {
+  test.each(['BAIXA', 'MEDIA', 'ALTA'])('exibe justificativa apenas para URGENTE e a remove ao selecionar %s', async (prioridade) => {
+    const user = userEvent.setup();
+    render(<SolicitacaoForm />);
+    const select = screen.getByRole('combobox', { name: 'Prioridade *' });
+    expect(screen.queryByRole('textbox', { name: /Justificativa/ })).not.toBeInTheDocument();
+    await user.selectOptions(select, prioridade);
+    expect(screen.queryByRole('textbox', { name: /Justificativa/ })).not.toBeInTheDocument();
+    await user.selectOptions(select, 'URGENTE');
+    expect(screen.getByRole('textbox', { name: /Justificativa/ })).toBeVisible();
+    expect(screen.getByRole('textbox', { name: /Justificativa/ })).toBeRequired();
+    await user.selectOptions(select, prioridade);
+    expect(screen.queryByRole('textbox', { name: /Justificativa/ })).not.toBeInTheDocument();
+  });
+
+  test.each(['ALTA', 'URGENTE'] as const)('envia os dados preenchidos com prioridade %s ao serviço mockado', async (prioridade) => {
+    const user = userEvent.setup();
+    const justificativa = 'Motivo fictício da urgência.';
+    const created: Solicitacao = { ...item, prioridade, justificativa_prioridade: prioridade === 'URGENTE' ? justificativa : null };
+    const create = vi.spyOn(api, 'criarSolicitacao').mockResolvedValue(created);
+    const onCreated = vi.fn();
+    render(<SolicitacaoForm onCreated={onCreated} />);
+
+    await user.type(screen.getByRole('textbox', { name: 'Nome fictício do solicitante *' }), item.nome_solicitante);
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Categoria *' }), 'EXAME');
+    await user.type(screen.getByRole('textbox', { name: 'Descrição *' }), item.descricao);
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Prioridade *' }), 'URGENTE');
+    await user.type(screen.getByRole('textbox', { name: /Justificativa/ }), justificativa);
+    // Uma justificativa preenchida deixa de integrar o envio ao sair de URGENTE.
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Prioridade *' }), prioridade);
+    await user.click(screen.getByRole('button', { name: 'Cadastrar solicitação' }));
+
+    expect(await screen.findByRole('status')).toHaveTextContent(`Solicitação cadastrada. Protocolo: ${created.protocolo}`);
+    expect(create).toHaveBeenCalledTimes(1);
+    expect(create).toHaveBeenCalledWith({
+      nome_solicitante: item.nome_solicitante,
+      categoria: 'EXAME',
+      prioridade,
+      descricao: item.descricao,
+      ...(prioridade === 'URGENTE' ? { justificativa_prioridade: justificativa } : {}),
+    }, { signal: expect.any(AbortSignal) });
+    expect(onCreated).toHaveBeenCalledExactlyOnceWith(created);
+  });
+
   async function fill() {
     await userEvent.type(screen.getByLabelText('Nome fictício do solicitante *'), 'Pessoa Fictícia Alfa');
     await userEvent.type(screen.getByLabelText('Descrição *'), 'Atendimento fictício.');

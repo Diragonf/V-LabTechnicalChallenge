@@ -55,9 +55,12 @@ final class SolicitacaoSeederTest extends TestCase
     {
         $this->seed(SolicitacaoSeeder::class);
         $primeiroProtocolo = Solicitacao::query()->firstOrFail()->protocolo;
+        Solicitacao::query()->where('protocolo', $primeiroProtocolo)->update(['descricao' => 'Descrição editada após o seed.']);
+        $registroDoUsuario = Solicitacao::factory()->create();
         $this->seed(SolicitacaoSeeder::class);
 
-        $this->assertDatabaseCount('solicitacoes', 40);
-        $this->assertDatabaseHas('solicitacoes', ['protocolo' => $primeiroProtocolo]);
+        $this->assertDatabaseCount('solicitacoes', 21);
+        $this->assertDatabaseHas('solicitacoes', ['protocolo' => $primeiroProtocolo, 'descricao' => 'Descrição editada após o seed.']);
+        $this->assertDatabaseHas('solicitacoes', ['id' => $registroDoUsuario->id]);
     }
 }

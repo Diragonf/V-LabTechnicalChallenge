@@ -1,0 +1,81 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    name: Backend
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: backend
+    env:
+      APP_ENV: testing
+      APP_DEBUG: 'false'
+      DB_CONNECTION: pgsql
+      DB_HOST: 127.0.0.1
+      DB_PORT: 5432
+      DB_DATABASE: vlab_testing
+      DB_USERNAME: vlab
+      DB_PASSWORD: ci_only_password
+      CACHE_STORE: array
+      SESSION_DRIVER: array
+      QUEUE_CONNECTION: sync
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: vlab_testing
+          POSTGRES_USER: vlab
+          POSTGRES_PASSWORD: ci_only_password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U vlab -d vlab_testing"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=12
+    steps:
+      - uses: actions/checkout@v7
+      - name: Configurar PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: pdo_pgsql, mbstring, dom, xml, xmlwriter
+          coverage: none
+          tools: composer:v2
+      - name: Instalar dependências
+        run: composer install --no-interaction --prefer-dist --no-progress
+      - name: Verificar estilo com Pint
+        run: composer lint
+      - name: Executar PHPUnit
+        run: composer test
+
+  frontend:
+    name: Frontend
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - name: Configurar Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - name: Instalar dependências
+        run: npm ci
+      - name: Validar tipos TypeScript
+        run: npm run typecheck
+      - name: Executar ESLint
+        run: npm run lint
+      - name: Executar Vitest
+        run: npm run test:components
+      - name: Testar cliente de API
+        run: npm run test:api

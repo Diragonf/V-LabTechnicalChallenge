@@ -6,6 +6,7 @@ namespace Tests\Feature;
 
 use App\Models\Solicitacao;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Route;
 use RuntimeException;
 use Tests\TestCase;
@@ -27,7 +28,7 @@ final class SolicitacaoApiTest extends TestCase
 
     public function test_cria_detalha_e_gera_protocolos_distintos(): void
     {
-        $this->travelTo(\Illuminate\Support\Carbon::parse('2026-09-23 12:00:00', 'UTC'));
+        $this->travelTo(Carbon::parse('2026-09-23 12:00:00', 'UTC'));
         $primeira = $this->postJson('/api/v1/solicitacoes', $this->dados())
             ->assertCreated()
             ->assertJsonPath('data.status', 'RECEBIDA')

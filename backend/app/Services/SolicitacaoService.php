@@ -6,9 +6,9 @@ namespace App\Services;
 
 use App\Exceptions\InvalidStatusTransitionException;
 use App\Models\Solicitacao;
-use Illuminate\Database\UniqueConstraintViolationException;
-use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use RuntimeException;
@@ -129,7 +129,7 @@ final class SolicitacaoService
     {
         // Evita overflow de bigint no PostgreSQL e mantém IDs inválidos como 404.
         if (filter_var($id, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]) === false) {
-            throw (new ModelNotFoundException())->setModel(Solicitacao::class);
+            throw (new ModelNotFoundException)->setModel(Solicitacao::class);
         }
     }
 

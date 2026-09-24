@@ -1,0 +1,458 @@
+openapi: 3.0.3
+info:
+  title: V-Lab — API de Solicitações
+  version: 1.0.0
+  description: |
+    API de demonstração para uso exclusivo com dados fictícios.
+    Envie corpos como objetos JSON com Content-Type application/json.
+    Campos desconhecidos são rejeitados com 422. Textos são aparados;
+    textos vazios são convertidos em null antes da validação.
+    Não há autenticação implementada nesta etapa.
+servers:
+  - url: /api/v1
+tags:
+  - name: Solicitações
+  - name: Saúde da aplicação
+paths:
+  /health:
+    get:
+      tags: [Saúde da aplicação]
+      operationId: verificarSaude
+      summary: Verificar conectividade ativa com PostgreSQL
+      description: |
+        Executa SELECT 1 na conexão pgsql (servidor de escrita) em cada chamada.
+        Não verifica migrations nem a existência das tabelas da aplicação.
+        Falhas retornam 503 sem detalhes internos. Respostas não devem ser armazenadas em cache.
+      responses:
+        '200':
+          description: PostgreSQL conectado e respondendo
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+                example: no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Health'
+              example:
+                status: ok
+                database: connected
+                timestamp: '2026-09-23T12:00:00.000000Z'
+        '503':
+          description: PostgreSQL indisponível
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+                example: no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Health'
+              example:
+                status: error
+                database: disconnected
+                timestamp: '2026-09-23T12:00:00.000000Z'
+  /solicitacoes:
+    post:
+      tags: [Solicitações]
+      operationId: criarSolicitacao
+      summary: Criar uma solicitação fictícia
+      description: Protocolo gerado pelo serviço e status inicial sempre RECEBIDA.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StoreSolicitacao'
+            example:
+              nome_solicitante: Pessoa Fictícia Alfa
+              categoria: EXAME
+              prioridade: URGENTE
+              descricao: Solicitação fictícia para demonstração.
+              justificativa_prioridade: Justificativa fictícia de urgência.
+      responses:
+        '201':
+          description: Solicitação criada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SolicitacaoResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    get:
+      tags: [Solicitações]
+      operationId: listarSolicitacoes
+      summary: Listar solicitações com paginação
+      description: |
+        Filtros opcionais são combinados com AND. Ordenação por id decrescente.
+        Filtros vazios ou inválidos e parâmetros desconhecidos retornam 422.
+        Páginas além da última retornam data vazio com HTTP 200.
+      parameters:
+        - name: status
+          in: query
+          schema:
+            $ref: '#/components/schemas/Status'
+        - name: categoria
+          in: query
+          schema:
+            $ref: '#/components/schemas/Categoria'
+        - name: prioridade
+          in: query
+          schema:
+            $ref: '#/components/schemas/Prioridade'
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 2147483647
+            default: 1
+        - name: per_page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 15
+      responses:
+        '200':
+          description: Página de solicitações
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedSolicitacoes'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /solicitacoes/{id}:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    get:
+      tags: [Solicitações]
+      operationId: detalharSolicitacao
+      summary: Detalhar uma solicitação
+      responses:
+        '200':
+          description: Solicitação encontrada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SolicitacaoResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /solicitacoes/{id}/status:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    patch:
+      tags: [Solicitações]
+      operationId: atualizarStatusSolicitacao
+      summary: Atualizar o status de uma solicitação
+      description: |
+        RECEBIDA permite EM_ANALISE ou CANCELADA.
+        EM_ANALISE permite AGENDADA ou CANCELADA.
+        AGENDADA permite CONCLUIDA ou CANCELADA.
+        CONCLUIDA e CANCELADA são finais.
+        Repetir o status atual também é uma transição inválida (400).
+        Status fora do enum retorna 422.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [status]
+              properties:
+                status:
+                  $ref: '#/components/schemas/Status'
+            example:
+              status: EM_ANALISE
+      responses:
+        '200':
+          description: Status atualizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SolicitacaoResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+components:
+  parameters:
+    Id:
+      name: id
+      in: path
+      required: true
+      description: ID positivo bigint. ID inválido, fora do intervalo ou inexistente retorna 404.
+      schema:
+        type: integer
+        format: int64
+        minimum: 1
+        maximum: 9223372036854775807
+  schemas:
+    Health:
+      type: object
+      additionalProperties: false
+      required: [status, database, timestamp]
+      properties:
+        status:
+          type: string
+          enum: [ok, error]
+        database:
+          type: string
+          enum: [connected, disconnected]
+        timestamp:
+          type: string
+          format: date-time
+          description: Instante da verificação em UTC.
+    Categoria:
+      type: string
+      enum: [CONSULTA, EXAME, VACINACAO, OUTRO]
+    Prioridade:
+      type: string
+      enum: [BAIXA, MEDIA, ALTA, URGENTE]
+    Status:
+      type: string
+      enum: [RECEBIDA, EM_ANALISE, AGENDADA, CONCLUIDA, CANCELADA]
+    StoreSolicitacao:
+      type: object
+      additionalProperties: false
+      required: [nome_solicitante, categoria, prioridade, descricao]
+      description: |
+        justificativa_prioridade é obrigatória, não nula e não vazia quando
+        prioridade é URGENTE. Use apenas nomes e descrições fictícios.
+        id, protocolo, status e timestamps não podem ser enviados.
+      oneOf:
+        - properties:
+            prioridade:
+              type: string
+              enum: [URGENTE]
+            justificativa_prioridade:
+              type: string
+              nullable: false
+              minLength: 1
+              maxLength: 10000
+              pattern: '\S'
+          required: [justificativa_prioridade]
+        - properties:
+            prioridade:
+              type: string
+              enum: [BAIXA, MEDIA, ALTA]
+      properties:
+        nome_solicitante:
+          type: string
+          minLength: 1
+          maxLength: 255
+          pattern: '\S'
+          example: Pessoa Fictícia Alfa
+        categoria:
+          $ref: '#/components/schemas/Categoria'
+        prioridade:
+          $ref: '#/components/schemas/Prioridade'
+        descricao:
+          type: string
+          minLength: 1
+          maxLength: 10000
+          pattern: '\S'
+          example: Solicitação fictícia para demonstração.
+        justificativa_prioridade:
+          type: string
+          nullable: true
+          minLength: 1
+          maxLength: 10000
+          pattern: '\S'
+          example: Justificativa fictícia de urgência.
+    Solicitacao:
+      type: object
+      additionalProperties: false
+      required: [id, protocolo, nome_solicitante, categoria, prioridade, status, descricao, justificativa_prioridade, data_criacao, data_atualizacao]
+      properties:
+        id:
+          type: integer
+          format: int64
+          minimum: 1
+          example: 1
+        protocolo:
+          type: string
+          readOnly: true
+          pattern: '^SOL-[0-9]{8}-[A-F0-9]{16}$'
+          example: SOL-20260923-A1B2C3D4E5F60708
+        nome_solicitante:
+          type: string
+          maxLength: 255
+          example: Pessoa Fictícia Alfa
+        categoria:
+          $ref: '#/components/schemas/Categoria'
+        prioridade:
+          $ref: '#/components/schemas/Prioridade'
+        status:
+          $ref: '#/components/schemas/Status'
+        descricao:
+          type: string
+          example: Solicitação fictícia para demonstração.
+        justificativa_prioridade:
+          type: string
+          nullable: true
+          example: null
+        data_criacao:
+          type: string
+          format: date-time
+          readOnly: true
+          example: '2026-09-23T12:00:00.000000Z'
+        data_atualizacao:
+          type: string
+          format: date-time
+          readOnly: true
+          example: '2026-09-23T12:00:00.000000Z'
+    SolicitacaoResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          $ref: '#/components/schemas/Solicitacao'
+    PaginatedSolicitacoes:
+      type: object
+      required: [data, links, meta]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Solicitacao'
+        links:
+          type: object
+          required: [first, last, prev, next]
+          properties:
+            first:
+              type: string
+              format: uri
+            last:
+              type: string
+              format: uri
+            prev:
+              type: string
+              format: uri
+              nullable: true
+            next:
+              type: string
+              format: uri
+              nullable: true
+        meta:
+          type: object
+          required: [current_page, from, last_page, links, path, per_page, to, total]
+          properties:
+            current_page:
+              type: integer
+            from:
+              type: integer
+              nullable: true
+            last_page:
+              type: integer
+            links:
+              type: array
+              items:
+                type: object
+                required: [url, label, active]
+                properties:
+                  url:
+                    type: string
+                    format: uri
+                    nullable: true
+                  label:
+                    type: string
+                  active:
+                    type: boolean
+            path:
+              type: string
+              format: uri
+            per_page:
+              type: integer
+            to:
+              type: integer
+              nullable: true
+            total:
+              type: integer
+    Error:
+      type: object
+      additionalProperties: false
+      required: [message, errors]
+      properties:
+        message:
+          type: string
+        errors:
+          type: object
+          additionalProperties:
+            type: array
+            items:
+              type: string
+  responses:
+    BadRequest:
+      description: JSON malformado, corpo que não é objeto ou transição de status proibida
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          examples:
+            invalidTransition:
+              value:
+                message: A transição de status solicitada não é permitida.
+                errors: {}
+            invalidJson:
+              value:
+                message: Requisição inválida. Envie um objeto JSON válido.
+                errors: {}
+    ValidationError:
+      description: Dados, filtros ou paginação inválidos; campos desconhecidos
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            message: Os dados informados são inválidos.
+            errors:
+              justificativa_prioridade:
+                - A justificativa é obrigatória para prioridade URGENTE.
+    NotFound:
+      description: Recurso ou rota inexistente; ID inválido
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            message: Recurso não encontrado.
+            errors: {}
+    UnsupportedMediaType:
+      description: Corpo enviado sem Content-Type JSON
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            message: Envie o conteúdo como application/json.
+            errors: {}
+    InternalError:
+      description: Falha interna sem exposição de detalhes técnicos
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            message: Ocorreu um erro interno. Tente novamente mais tarde.
+            errors: {}

@@ -31,8 +31,9 @@ return Application::configure(basePath: dirname(__DIR__))
                 $message = 'Os dados informados são inválidos.';
                 $errors = (object) $exception->errors();
             } elseif ($exception instanceof InvalidStatusTransitionException) {
-                $status = 400;
-                $message = 'A transição de status solicitada não é permitida.';
+                $status = 422;
+                $message = $exception->getMessage();
+                $errors = (object) ['status' => [$message]];
             } elseif ($exception instanceof ModelNotFoundException) {
                 $status = 404;
                 $message = 'Recurso não encontrado.';

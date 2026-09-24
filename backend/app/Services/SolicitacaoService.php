@@ -109,15 +109,20 @@ final class SolicitacaoService
 
             $statusAtual = (string) $solicitacao->status;
 
-            if (! in_array($novoStatus, self::TRANSICOES[$statusAtual] ?? [], true)) {
-                throw new InvalidStatusTransitionException($statusAtual, $novoStatus);
-            }
+            $this->validarTransicao($statusAtual, $novoStatus);
 
             $solicitacao->status = $novoStatus;
             $solicitacao->save();
 
             return $solicitacao;
         });
+    }
+
+    public function validarTransicao(string $statusAtual, string $novoStatus): void
+    {
+        if (! in_array($novoStatus, self::TRANSICOES[$statusAtual] ?? [], true)) {
+            throw new InvalidStatusTransitionException($statusAtual, $novoStatus);
+        }
     }
 
     private function validarId(int|string $id): void

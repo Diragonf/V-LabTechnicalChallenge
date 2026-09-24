@@ -12,6 +12,6 @@ final class InvalidStatusTransitionException extends DomainException
         public readonly string $statusAtual,
         public readonly string $novoStatus,
     ) {
-        parent::__construct('A transição de status solicitada não é permitida.');
+        parent::__construct("A transição de {$statusAtual} para {$novoStatus} não é permitida.");
     }
 }

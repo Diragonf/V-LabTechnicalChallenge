@@ -163,7 +163,7 @@ paths:
         EM_ANALISE permite AGENDADA ou CANCELADA.
         AGENDADA permite CONCLUIDA ou CANCELADA.
         CONCLUIDA e CANCELADA são finais.
-        Repetir o status atual também é uma transição inválida (400).
+        Repetir o status atual também é uma transição inválida (422).
         Status fora do enum retorna 422.
       requestBody:
         required: true
@@ -404,31 +404,35 @@ components:
               type: string
   responses:
     BadRequest:
-      description: JSON malformado, corpo que não é objeto ou transição de status proibida
+      description: JSON malformado ou corpo que não é objeto
       content:
         application/json:
           schema:
             $ref: '#/components/schemas/Error'
           examples:
-            invalidTransition:
-              value:
-                message: A transição de status solicitada não é permitida.
-                errors: {}
             invalidJson:
               value:
                 message: Requisição inválida. Envie um objeto JSON válido.
                 errors: {}
     ValidationError:
-      description: Dados, filtros ou paginação inválidos; campos desconhecidos
+      description: Dados, filtros ou paginação inválidos; campos desconhecidos ou transição de status proibida
       content:
         application/json:
           schema:
             $ref: '#/components/schemas/Error'
-          example:
-            message: Os dados informados são inválidos.
-            errors:
-              justificativa_prioridade:
-                - A justificativa é obrigatória para prioridade URGENTE.
+          examples:
+            urgentWithoutReason:
+              value:
+                message: Os dados informados são inválidos.
+                errors:
+                  justificativa_prioridade:
+                    - A justificativa é obrigatória para prioridade URGENTE.
+            invalidTransition:
+              value:
+                message: A transição de RECEBIDA para CONCLUIDA não é permitida.
+                errors:
+                  status:
+                    - A transição de RECEBIDA para CONCLUIDA não é permitida.
     NotFound:
       description: Recurso ou rota inexistente; ID inválido
       content:
